@@ -72,6 +72,7 @@ public class GameController : MonoBehaviour
         }
     }
 
+    // Gère les taps de l'utilisateur pour placer les symboles
     void OnTap(InputAction.CallbackContext context)
     {
         // Ne rien faire si la grille n'est pas placée ou le jeu est fini
@@ -86,13 +87,13 @@ public class GameController : MonoBehaviour
 
         Vector2 screenPos = inputActions.AR.Point.ReadValue<Vector2>();
 
-        // Raycast CLASSIQUE (Physics) vers les cellules de la grille
+        // Raycast
         Ray ray = Camera.main.ScreenPointToRay(screenPos);
         RaycastHit hit;
 
         if (Physics.Raycast(ray, out hit))
         {
-            // Chercher CellID sur l'objet touché OU son parent
+            // Chercher CellID dans l'objet touché ou ses parents
             CellID cell = hit.collider.GetComponent<CellID>();
             if (cell == null)
             {
