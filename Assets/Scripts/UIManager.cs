@@ -20,6 +20,7 @@ public class UIManager : MonoBehaviour
     {
         ShowInstructions("Scannez une surface et touchez pour placer le Tic Tac Toe");
         currentPlayerText.gameObject.SetActive(false);
+        statusPanel.SetActive(false);
     }
 
     public void UpdateCurrentPlayer(bool isXTurn)
@@ -59,6 +60,8 @@ public class UIManager : MonoBehaviour
     {
         HideInstructions();
         ShowControls();
+        statusPanel.SetActive(true);
+        currentPlayerText.gameObject.SetActive(true);
         UpdateCurrentPlayer(true);
     }
 }

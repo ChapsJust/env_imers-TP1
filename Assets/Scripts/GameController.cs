@@ -170,76 +170,66 @@ public class GameController : MonoBehaviour
         return 0; // Pas de gagnant
     }
 
-    /// <summary>
-    /// Met en évidence les 3 cellules gagnantes avec un cube lumineux sous chaque symbole
-    /// et agrandit légèrement les symboles gagnants.
-    /// </summary>
     private void HighlightWinningLine(int[] combo)
     {
         GameObject boardObj = placementManager.GetBoard();
         Transform boardTransform = boardObj.transform;
 
-        // Vérifier que le material est assigné
         if (highlightMaterial == null)
         {
             Debug.LogWarning("HighlightMaterial non assigné dans l'Inspector!");
             return;
         }
 
+        Transform plateau = boardTransform.Find("Plateau");
+        if (plateau == null)
+        {
+            plateau = boardTransform;
+        }
+
         foreach (int index in combo)
         {
-            Transform cell = boardObj.transform.Find($"Cell_{index}");
-            if (cell != null)
+            string cellName = $"Cell {index + 1}";
+            Transform cell = plateau.Find(cellName);
+            if (cell == null) continue;
+
+            // Trouver le symbole le plus proche de cette cellule
+            GameObject closestSymbol = FindSymbolAtCell(cell);
+            if (closestSymbol == null) continue;
+
+            // Dupliquer le symbole pour créer l'aura
+            GameObject aura = Instantiate(closestSymbol, closestSymbol.transform.position, closestSymbol.transform.rotation);
+            aura.name = $"Aura_{index}";
+            aura.transform.SetParent(closestSymbol.transform.parent, true);
+
+            // Agrandir légèrement la copie pour qu'elle dépasse le symbole original
+            aura.transform.localScale = closestSymbol.transform.localScale * 1.4f;
+
+            // Appliquer le material jaune sur tous les renderers de l'aura
+            Renderer[] renderers = aura.GetComponentsInChildren<Renderer>();
+            foreach (Renderer rend in renderers)
             {
-                // Créer un cube plat lumineux sous la cellule gagnante
-                GameObject highlight = GameObject.CreatePrimitive(PrimitiveType.Quad);
-                highlight.name = $"Highlight_{index}";
-
-                // Positionner le highlight juste au-dessus du board
-                highlight.transform.SetParent(boardTransform);
-                highlight.transform.position = cell.position + boardTransform.up * 0.003f;
-
-                // Orienter le quad face vers le haut du board
-                highlight.transform.rotation = boardTransform.rotation;
-                highlight.transform.Rotate(90f, 0f, 0f, Space.Self);
-
-                highlight.transform.localScale = new Vector3(0.09f, 0.09f, 1f);
-
-                // Désactiver le collider
-                Collider col = highlight.GetComponent<Collider>();
-                if (col != null) Destroy(col);
-
-                // Appliquer le material pré-créé
-                Renderer renderer = highlight.GetComponent<Renderer>();
-                if (renderer != null)
-                {
-                    renderer.material = highlightMaterial;
-                }
-
-                highlightEffects.Add(highlight);
-
-                // Agrandir le symbole gagnant
-                ScaleWinningSymbol(index);
-
-                Debug.Log($"Highlight créé sur Cell_{index} à {cell.position}");
+                rend.material = highlightMaterial;
             }
-            else
+
+            // Désactiver tous les colliders de l'aura
+            Collider[] colliders = aura.GetComponentsInChildren<Collider>();
+            foreach (Collider col in colliders)
             {
-                Debug.LogWarning($"Cell_{index} introuvable dans le board!");
+                Destroy(col);
             }
+
+            highlightEffects.Add(aura);
+
+            Debug.Log($"Aura créée sur {cellName}");
         }
     }
 
     /// <summary>
-    /// Agrandit le symbole sur la cellule gagnante pour un effet visuel.
+    /// Trouve le symbole placé le plus proche d'une cellule.
     /// </summary>
-    private void ScaleWinningSymbol(int cellIndex)
+    private GameObject FindSymbolAtCell(Transform cell)
     {
-        // Les symboles sont placés dans l'ordre des coups joués.
-        GameObject boardObj = placementManager.GetBoard();
-        Transform cell = boardObj.transform.Find($"Cell_{cellIndex}");
-        if (cell == null) return;
-
         float closestDist = float.MaxValue;
         GameObject closestSymbol = null;
 
@@ -254,12 +244,12 @@ public class GameController : MonoBehaviour
             }
         }
 
+        // Seulement si assez proche
         if (closestSymbol != null && closestDist < 0.05f)
-        {
-            closestSymbol.transform.localScale *= highlightScaleMultiplier;
-        }
-    }
+            return closestSymbol;
 
+        return null;
+    }
 
     private bool IsBoardFull()
     {
@@ -282,6 +272,11 @@ public class GameController : MonoBehaviour
             if (symbol != null) Destroy(symbol);
         }
         placedSymbols.Clear();
+        foreach (GameObject highlight in highlightEffects)
+        {
+            if (highlight != null) Destroy(highlight);
+        }
+        highlightEffects.Clear();
 
         isXTurn = true;
         gameOver = false;

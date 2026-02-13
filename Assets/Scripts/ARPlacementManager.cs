@@ -66,6 +66,7 @@ public class ARPlacementManager : MonoBehaviour
 
         // Désactiver la visualisation des plans
         TogglePlaneVisuals(false);
+
         if (uiManager != null)
             uiManager.UpdateForBoardPlaced();
 
