@@ -58,6 +58,7 @@ public class ARPlacementManager : MonoBehaviour
         }
     }
 
+    // Place la grille à la position donnée et crée une ancre pour la suivre
     private void PlaceBoard(Pose pose)
     {
         placedBoard = Instantiate(boardPrefab, pose.position, pose.rotation);
@@ -73,6 +74,7 @@ public class ARPlacementManager : MonoBehaviour
         Debug.Log("Grille placée!");
     }
 
+    // Affiche ou masque les plans AR
     private void TogglePlaneVisuals(bool visible)
     {
         foreach (var plane in arPlaneManager.trackables)
@@ -82,6 +84,7 @@ public class ARPlacementManager : MonoBehaviour
         arPlaneManager.planePrefab = visible ? arPlaneManager.planePrefab : null;
     }
 
+    // Permet de réinitialiser le placement de la grille 
     public void ResetPlacement()
     {
         if (placedBoard != null)

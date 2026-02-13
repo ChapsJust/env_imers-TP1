@@ -32,6 +32,7 @@ public class GameController : MonoBehaviour
     // Input
     private InputSystem_Actions inputActions;
     private List<ARRaycastHit> arHits = new List<ARRaycastHit>();
+    private bool hasConsumedPlacementTap = false;
 
     // Combinaisons gagnantes
     private int[][] winCombinations = new int[][]
@@ -63,10 +64,25 @@ public class GameController : MonoBehaviour
         inputActions.Disable();
     }
 
+    void Update()
+    {
+        if (!placementManager.IsBoardPlaced())
+        {
+            hasConsumedPlacementTap = false;
+        }
+    }
+
     void OnTap(InputAction.CallbackContext context)
     {
         // Ne rien faire si la grille n'est pas placée ou le jeu est fini
         if (!placementManager.IsBoardPlaced() || gameOver) return;
+
+        // Ignorer le tap qui vient juste de placer le plateau
+        if (!hasConsumedPlacementTap)
+        {
+            hasConsumedPlacementTap = true;
+            return;
+        }
 
         Vector2 screenPos = inputActions.AR.Point.ReadValue<Vector2>();
 
@@ -90,6 +106,7 @@ public class GameController : MonoBehaviour
         }
     }
 
+    // Tente de placer un symbole à l'index donné, en vérifiant les règles du jeu
     private void TryPlaceSymbol(int index, Transform cellTransform)
     {
         if (index < 0 || index >= 9)
@@ -108,11 +125,10 @@ public class GameController : MonoBehaviour
 
         Transform boardTransform = placementManager.GetBoard().transform;
 
-        // Décaler dans la direction "up" du board (fonctionne mur, sol, plafond)
+        // Décaler légèrement vers le haut pour éviter le clipping avec la grille
         Vector3 spawnPos = cellTransform.position + boardTransform.up * 0.02f;
 
         // Utiliser directement la rotation du board
-        // Les symboles seront alignés à plat sur le plateau peu importe son orientation
         GameObject symbol = Instantiate(prefab, spawnPos, boardTransform.rotation);
         symbol.transform.SetParent(boardTransform);
 
@@ -135,7 +151,6 @@ public class GameController : MonoBehaviour
             {
                 HighlightWinningLine(winningCombo);
             }
-
             uiManager.ShowGameOver($"{winnerName} a gagné!");
             return;
         }
@@ -154,6 +169,7 @@ public class GameController : MonoBehaviour
         uiManager.UpdateCurrentPlayer(isXTurn);
     }
 
+    // Regarde qui est le gagnant
     private int CheckWinner(out int[] winningCombo)
     {
         foreach (int[] combo in winCombinations)
@@ -170,6 +186,7 @@ public class GameController : MonoBehaviour
         return 0; // Pas de gagnant
     }
 
+    /// Crée une aura de surbrillance autour des symboles gagnants
     private void HighlightWinningLine(int[] combo)
     {
         GameObject boardObj = placementManager.GetBoard();
@@ -251,6 +268,7 @@ public class GameController : MonoBehaviour
         return null;
     }
 
+    // Vérifie si toutes les cases sont remplies
     private bool IsBoardFull()
     {
         foreach (int cell in board)
@@ -280,9 +298,11 @@ public class GameController : MonoBehaviour
 
         isXTurn = true;
         gameOver = false;
+        hasConsumedPlacementTap = placementManager.IsBoardPlaced();
 
         Debug.Log("Nouvelle partie! Tour de X");
         uiManager.HideGameOver();
+        uiManager.ShowStatus();
         uiManager.UpdateCurrentPlayer(true);
     }
 
@@ -290,6 +310,7 @@ public class GameController : MonoBehaviour
     {
         NewGame();
         placementManager.ResetPlacement();
+        hasConsumedPlacementTap = false;
         uiManager.ShowInstructions("Scannez une surface pour placer le plateau.");
     }
 

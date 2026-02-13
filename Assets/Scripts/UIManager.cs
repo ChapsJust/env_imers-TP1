@@ -43,6 +43,7 @@ public class UIManager : MonoBehaviour
     public void ShowGameOver(string message)
     {
         gameOverPanel.SetActive(true);
+        statusPanel.SetActive(false);
         winnerText.text = message;
     }
 
@@ -54,6 +55,11 @@ public class UIManager : MonoBehaviour
     public void ShowControls()
     {
         controlPanel.SetActive(true);
+    }
+
+    public void ShowStatus()
+    {
+        statusPanel.SetActive(true);
     }
 
     public void UpdateForBoardPlaced()
