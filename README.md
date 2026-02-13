@@ -1,6 +1,6 @@
 # TicTacToe AR — TP1 Environnement Immersif
 
-**Auteur :** Chaps  
+**Auteur :** Justin Chaput 
 **Projet :** TicTacToe en réalité augmentée (AR)
 
 ## Description brève
