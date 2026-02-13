@@ -1,9 +1,9 @@
 using System.Collections.Generic;
+using Unity.VisualScripting.Antlr3.Runtime.Tree;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.XR.ARFoundation;
 using UnityEngine.XR.ARSubsystems;
-
 public class GameController : MonoBehaviour
 {
     [Header("Prefabs")]
@@ -14,11 +14,20 @@ public class GameController : MonoBehaviour
     [SerializeField] private ARRaycastManager arRaycastManager;
     [SerializeField] private ARPlacementManager placementManager;
 
+    [Header("UI")]
+    [SerializeField] private UIManager uiManager;
+    [SerializeField] private Material highlightMaterial;
+
+    [Header("Highlight")]
+    [SerializeField] private Color winHighlightColor = Color.yellow;
+    [SerializeField] private float highlightScaleMultiplier = 1.3f;
+
     // État du jeu
     private int[] board = new int[9]; // 0=vide, 1=X, 2=O
     private bool isXTurn = true;
     private bool gameOver = false;
     private List<GameObject> placedSymbols = new List<GameObject>();
+    private List<GameObject> highlightEffects = new List<GameObject>();
 
     // Input
     private InputSystem_Actions inputActions;
@@ -116,13 +125,18 @@ public class GameController : MonoBehaviour
         Debug.Log($"Index: {index}, Position: {cellTransform.position}, Joueur: {(isXTurn ? "X" : "O")}");
 
         // Vérifier victoire
-        int winner = CheckWinner();
+        int winner = CheckWinner(out int[] winningCombo);
         if (winner != 0)
         {
             gameOver = true;
             string winnerName = winner == 1 ? "X" : "O";
             Debug.Log($"{winnerName} a gagné!");
-            // TODO: Afficher UI de victoire
+            if (winningCombo != null)
+            {
+                HighlightWinningLine(winningCombo);
+            }
+
+            uiManager.ShowGameOver($"{winnerName} a gagné!");
             return;
         }
 
@@ -131,16 +145,16 @@ public class GameController : MonoBehaviour
         {
             gameOver = true;
             Debug.Log("Match nul!");
-            // TODO: Afficher UI match nul
+            uiManager.ShowGameOver("Match nul!");
             return;
         }
 
         // Changer de tour
         isXTurn = !isXTurn;
-        Debug.Log($"Tour de {(isXTurn ? "X" : "O")}");
+        uiManager.UpdateCurrentPlayer(isXTurn);
     }
 
-    private int CheckWinner()
+    private int CheckWinner(out int[] winningCombo)
     {
         foreach (int[] combo in winCombinations)
         {
@@ -148,12 +162,104 @@ public class GameController : MonoBehaviour
                 board[combo[0]] == board[combo[1]] &&
                 board[combo[1]] == board[combo[2]])
             {
-                // TODO: Mettre en évidence la ligne gagnante
+                winningCombo = combo;
                 return board[combo[0]];
             }
         }
+        winningCombo = null;
         return 0; // Pas de gagnant
     }
+
+    /// <summary>
+    /// Met en évidence les 3 cellules gagnantes avec un cube lumineux sous chaque symbole
+    /// et agrandit légèrement les symboles gagnants.
+    /// </summary>
+    private void HighlightWinningLine(int[] combo)
+    {
+        GameObject boardObj = placementManager.GetBoard();
+        Transform boardTransform = boardObj.transform;
+
+        // Vérifier que le material est assigné
+        if (highlightMaterial == null)
+        {
+            Debug.LogWarning("HighlightMaterial non assigné dans l'Inspector!");
+            return;
+        }
+
+        foreach (int index in combo)
+        {
+            Transform cell = boardObj.transform.Find($"Cell_{index}");
+            if (cell != null)
+            {
+                // Créer un cube plat lumineux sous la cellule gagnante
+                GameObject highlight = GameObject.CreatePrimitive(PrimitiveType.Quad);
+                highlight.name = $"Highlight_{index}";
+
+                // Positionner le highlight juste au-dessus du board
+                highlight.transform.SetParent(boardTransform);
+                highlight.transform.position = cell.position + boardTransform.up * 0.003f;
+
+                // Orienter le quad face vers le haut du board
+                highlight.transform.rotation = boardTransform.rotation;
+                highlight.transform.Rotate(90f, 0f, 0f, Space.Self);
+
+                highlight.transform.localScale = new Vector3(0.09f, 0.09f, 1f);
+
+                // Désactiver le collider
+                Collider col = highlight.GetComponent<Collider>();
+                if (col != null) Destroy(col);
+
+                // Appliquer le material pré-créé
+                Renderer renderer = highlight.GetComponent<Renderer>();
+                if (renderer != null)
+                {
+                    renderer.material = highlightMaterial;
+                }
+
+                highlightEffects.Add(highlight);
+
+                // Agrandir le symbole gagnant
+                ScaleWinningSymbol(index);
+
+                Debug.Log($"Highlight créé sur Cell_{index} à {cell.position}");
+            }
+            else
+            {
+                Debug.LogWarning($"Cell_{index} introuvable dans le board!");
+            }
+        }
+    }
+
+    /// <summary>
+    /// Agrandit le symbole sur la cellule gagnante pour un effet visuel.
+    /// </summary>
+    private void ScaleWinningSymbol(int cellIndex)
+    {
+        // Les symboles sont placés dans l'ordre des coups joués.
+        GameObject boardObj = placementManager.GetBoard();
+        Transform cell = boardObj.transform.Find($"Cell_{cellIndex}");
+        if (cell == null) return;
+
+        float closestDist = float.MaxValue;
+        GameObject closestSymbol = null;
+
+        foreach (GameObject symbol in placedSymbols)
+        {
+            if (symbol == null) continue;
+            float dist = Vector3.Distance(symbol.transform.position, cell.position);
+            if (dist < closestDist)
+            {
+                closestDist = dist;
+                closestSymbol = symbol;
+            }
+        }
+
+        if (closestSymbol != null && closestDist < 0.05f)
+        {
+            closestSymbol.transform.localScale *= highlightScaleMultiplier;
+        }
+    }
+
 
     private bool IsBoardFull()
     {
@@ -181,14 +287,15 @@ public class GameController : MonoBehaviour
         gameOver = false;
 
         Debug.Log("Nouvelle partie! Tour de X");
-        // TODO: Mettre à jour l'UI
+        uiManager.HideGameOver();
+        uiManager.UpdateCurrentPlayer(true);
     }
 
     public void ResetPlacement()
     {
         NewGame();
         placementManager.ResetPlacement();
-        // TODO: Remettre les instructions "Scannez une surface..."
+        uiManager.ShowInstructions("Scannez une surface pour placer le plateau.");
     }
 
     private void SetLayerRecursive(GameObject obj, int layer)

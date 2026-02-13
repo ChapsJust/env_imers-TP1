@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Unity.VisualScripting;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.XR.ARFoundation;
@@ -9,13 +10,18 @@ public class ARPlacementManager : MonoBehaviour
     [Header("AR Components")]
     [SerializeField] private ARRaycastManager arRaycastManager;
     [SerializeField] private ARPlaneManager arPlaneManager;
+    [SerializeField] private ARAnchorManager anchorManager;
 
     [Header("Prefabs")]
     [SerializeField] private GameObject boardPrefab;
 
+    [Header("UI")]
+    [SerializeField] private UIManager uiManager;
+
     // État
     private GameObject placedBoard;
     private bool boardIsPlaced = false;
+    private ARAnchor boardAnchor;
 
     // Input
     private InputSystem_Actions inputActions;
@@ -55,10 +61,13 @@ public class ARPlacementManager : MonoBehaviour
     private void PlaceBoard(Pose pose)
     {
         placedBoard = Instantiate(boardPrefab, pose.position, pose.rotation);
+        boardAnchor = anchorManager.AddComponent<ARAnchor>();
         boardIsPlaced = true;
 
         // Désactiver la visualisation des plans
         TogglePlaneVisuals(false);
+        if (uiManager != null)
+            uiManager.UpdateForBoardPlaced();
 
         Debug.Log("Grille placée!");
     }
@@ -78,6 +87,7 @@ public class ARPlacementManager : MonoBehaviour
         {
             Destroy(placedBoard);
         }
+        boardAnchor = null;
         boardIsPlaced = false;
         TogglePlaneVisuals(true);
         Debug.Log("Placement réinitialisé");
